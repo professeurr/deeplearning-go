@@ -1,84 +1,57 @@
-import tensorflow as tf
 import tensorflow.keras as keras
-import numpy as np
 from tensorflow.keras import layers
-import golois
+from tensorflow.keras.utils import plot_model
 
+from myutility import load_data, build_hidden_layers, initialize_input_layers
+
+
+N = 1000
 planes = 8
 moves = 361
-epochs = 30
+x_layers_depth = 2
+hidden_layers_depth = 2
+epochs = 7
 dynamicBatch = True
+batchSize = 4
 
-if dynamicBatch:
-    N = 100000
-    input_data = np.random.randint(2, size=(N, 19, 19, planes))
-    input_data = input_data.astype('float32')
+globalModel = None
 
-    policy = np.random.randint(moves, size=(N,))
-    policy = keras.utils.to_categorical(policy, moves)
+for k in range(batchSize):
+    print('running batch', (k+1), '/', batchSize)
 
-    value = np.random.randint(2, size=(N,))
-    value = value.astype('float32')
+    input = keras.Input(shape=(19, 19, planes), name='board')
+    z = layers.Conv2D(30, 1, activation='relu', padding='same')(input)
 
-    end = np.random.randint(2, size=(N, 19, 19, 2))
-    end = end.astype('float32')
+    # load data
+    input_data, policy, value, end = load_data(True, N, planes, moves)
 
-    golois.getBatch(input_data, policy, value, end)
-else:
-    input_data = np.load('input_data.npy')
-    policy = np.load('policy.npy')
-    value = np.load('value.npy')
-    end = np.load('end.npy')
+    # initialize the input layer
+    x = initialize_input_layers(input, z, x_layers_depth)
 
-input = keras.Input(shape=(19, 19, planes), name='board')
-z = layers.Conv2D(30, 1, activation='relu', padding='same')(input)
+    # build policy network
+    policy_head = build_hidden_layers(x, 5, z, hidden_layers_depth)
+    policy_head = layers.Dense(moves, activation='softmax', name='policy')(policy_head)
 
-x = layers.Conv2D(30, 3, activation='relu', padding='same')(input)
-x = layers.BatchNormalization()(x)
-x = layers.add([x,z])
-x = layers.Conv2D(30, 3, activation='relu', padding='same')(x)
-x = layers.BatchNormalization()(x)
-x = layers.add([x,z])
-x = layers.Conv2D(30, 3, activation='relu', padding='same')(x)
-x = layers.BatchNormalization()(x)
-x = layers.add([x,z])
-x = layers.Conv2D(30, 3, activation='relu', padding='same')(x)
-x = layers.BatchNormalization()(x)
+    # build value network
+    value_head = build_hidden_layers(x, 3, z, hidden_layers_depth)
+    value_head= layers.Dense(1, activation='sigmoid', kernel_regularizer=keras.regularizers.l1(0.1), name = 'value')(value_head)
 
-policy_head = layers.Conv2D(30, 5, activation='relu', padding='same')(x)
-policy_head = layers.BatchNormalization()(policy_head)
-policy_head = layers.add([policy_head,z])
-policy_head = layers.Conv2D(30, 5, activation='relu', padding='same')(policy_head)
-policy_head = layers.BatchNormalization()(policy_head)
-policy_head = layers.add([policy_head,z])
-policy_head = layers.Conv2D(29, 5, activation='relu', padding='same')(policy_head)
-policy_head = layers.BatchNormalization()(policy_head)
-policy_head = layers.MaxPooling2D()(policy_head)
-policy_head = layers.Flatten()(policy_head)
-policy_head = layers.Dense(moves, activation='softmax', name='policy')(policy_head)
+    model = keras.Model(input, outputs=[policy_head, value_head])
+    if globalModel:
+        model.set_weights(globalModel.get_weights())
 
+    model.compile(optimizer='adam',
+                  loss={'value': 'mse', 'policy': 'categorical_crossentropy'},
+                  metrics=['accuracy'])
 
-value_head = layers.Conv2D(30, 3, activation='relu', padding='same')(x)
-value_head = layers.BatchNormalization()(value_head)
-value_head = layers.add([value_head,z])
-value_head = layers.Conv2D(30, 3, activation='relu', padding='same')(value_head)
-value_head = layers.BatchNormalization()(value_head)
-value_head = layers.add([value_head,z])
-value_head = layers.Conv2D(30, 3, activation='relu', padding='same')(value_head)
-value_head = layers.BatchNormalization()(value_head)
-value_head = layers.MaxPooling2D()(value_head)
-value_head = layers.Flatten()(value_head)
-value_head= layers.Dense(1, activation='sigmoid', kernel_regularizer=keras.regularizers.l1(0.01), name = 'value')(value_head)
+    model.fit(input_data, {'policy': policy, 'value': value},
+              epochs=epochs, batch_size=32, validation_split=0.1)
 
-model = keras.Model(inputs=input, outputs=[policy_head, value_head])
+    globalModel = model
 
-model.summary()
+plot_model(globalModel, to_file='model.png')
 
-model.compile(optimizer=keras.optimizers.SGD(lr=0.1),
-              loss={'value': 'mse', 'policy': 'categorical_crossentropy'},
-              metrics=['accuracy'])
+globalModel.save('klouvi_kodjo_model.h5')
 
-model.fit(input_data, {'policy': policy, 'value': value},
-          epochs=epochs, batch_size=32, validation_split=0.1)
+# prevModel.summary()
 
-model.save('klouvi_kodjo_model.h5')
