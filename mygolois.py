@@ -45,7 +45,7 @@ for k in range(global_loop):
     # create the current model with the initial input, policy and value layers
     model = keras.Model(input, outputs=[policy_head, value_head])
     if globalModel:
-        # initialize the current model's weights with the previous model's ones (linked models)
+        # initialize the current model with the weights of the previous model (linked models)
         model.set_weights(globalModel.get_weights())
 
     model.compile(optimizer='adam',
