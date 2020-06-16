@@ -7,7 +7,7 @@ from myutility import load_data, build_hidden_layers, initialize_input_layers
 
 
 # input
-N = 10000
+N = 100000
 planes = 8
 moves = 361
 x_layers_depth = 4
@@ -15,7 +15,7 @@ hidden_layers_depth = 3
 epochs = 7
 dynamic_batch = True
 global_loop = 10
-mini_batch_size = 32
+mini_batch_size = 128
 
 # output
 train_policy_accuracy = []
@@ -44,8 +44,8 @@ for k in range(global_loop):
 
     # create the current model with the initial input, policy and value layers
     model = keras.Model(input, outputs=[policy_head, value_head])
+    # initialize the current model with the weights of the previous model (linked models)
     if globalModel:
-        # initialize the current model with the weights of the previous model (linked models)
         model.set_weights(globalModel.get_weights())
 
     model.compile(optimizer='adam',
