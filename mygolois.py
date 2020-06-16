@@ -1,6 +1,7 @@
 import tensorflow.keras as keras
 from tensorflow.keras import layers
 from tensorflow.keras.utils import plot_model
+import matplotlib.pyplot as plt
 
 from myutility import load_data, build_hidden_layers, initialize_input_layers
 
@@ -8,16 +9,18 @@ from myutility import load_data, build_hidden_layers, initialize_input_layers
 N = 1000
 planes = 8
 moves = 361
-x_layers_depth = 2
-hidden_layers_depth = 2
+x_layers_depth = 4
+hidden_layers_depth = 3
 epochs = 7
 dynamicBatch = True
-batchSize = 4
-
+global_loop = 10
+mini_batch_size = 32
+val_policy_accuracy = []
+test_policy_accuracy = []
 globalModel = None
 
-for k in range(batchSize):
-    print('running batch', (k+1), '/', batchSize)
+for k in range(global_loop):
+    print('running batch', (k+1), '/', global_loop)
 
     input = keras.Input(shape=(19, 19, planes), name='board')
     z = layers.Conv2D(30, 1, activation='relu', padding='same')(input)
@@ -44,14 +47,28 @@ for k in range(batchSize):
                   loss={'value': 'mse', 'policy': 'categorical_crossentropy'},
                   metrics=['accuracy'])
 
-    model.fit(input_data, {'policy': policy, 'value': value},
-              epochs=epochs, batch_size=32, validation_split=0.1)
+    result = model.fit(input_data, {'policy': policy, 'value': value},
+              epochs=epochs, batch_size=mini_batch_size, validation_split=0.1, verbose=0)
 
     globalModel = model
 
-plot_model(globalModel, to_file='model.png')
+    test_policy_accuracy = test_policy_accuracy + result.history['test_policy_accuracy']
+    val_policy_accuracy = val_policy_accuracy + result.history['val_policy_accuracy']
+    print('validation policy accuracy:', val_policy_accuracy.tail)
+    print('test policy accuracy:', test_policy_accuracy.tail)
 
-globalModel.save('klouvi_kodjo_model.h5')
 
 # prevModel.summary()
+
+# plot the history of accuracy
+plt.plot(test_policy_accuracy)
+plt.plot(val_policy_accuracy)
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'validation'], loc='upper left')
+plt.show()
+
+plot_model(globalModel, to_file='model.png')
+globalModel.save('klouvi_kodjo_model.h5')
+
 
