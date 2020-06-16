@@ -6,27 +6,30 @@ import matplotlib.pyplot as plt
 from myutility import load_data, build_hidden_layers, initialize_input_layers
 
 
-N = 1000
+# input
+N = 10000
 planes = 8
 moves = 361
 x_layers_depth = 4
 hidden_layers_depth = 3
 epochs = 7
-dynamicBatch = True
+dynamic_batch = True
 global_loop = 10
 mini_batch_size = 32
+
+# output
+train_policy_accuracy = []
 val_policy_accuracy = []
-test_policy_accuracy = []
 globalModel = None
 
-for k in range(global_loop):
-    print('running batch', (k+1), '/', global_loop)
+input = keras.Input(shape=(19, 19, planes), name='board')
+z = layers.Conv2D(30, 1, activation='relu', padding='same')(input)
 
-    input = keras.Input(shape=(19, 19, planes), name='board')
-    z = layers.Conv2D(30, 1, activation='relu', padding='same')(input)
+for k in range(global_loop):
+    print('running batch', (k+1), '/', global_loop, '...')
 
     # load data
-    input_data, policy, value, end = load_data(True, N, planes, moves)
+    input_data, policy, value, end = load_data(dynamic_batch, N, planes, moves)
 
     # initialize the input layer
     x = initialize_input_layers(input, z, x_layers_depth)
@@ -39,8 +42,10 @@ for k in range(global_loop):
     value_head = build_hidden_layers(x, 3, z, hidden_layers_depth)
     value_head= layers.Dense(1, activation='sigmoid', kernel_regularizer=keras.regularizers.l1(0.1), name = 'value')(value_head)
 
+    # create the current model with the initial input, policy and value layers
     model = keras.Model(input, outputs=[policy_head, value_head])
     if globalModel:
+        # initialize the current model's weights with the previous model's ones (linked models)
         model.set_weights(globalModel.get_weights())
 
     model.compile(optimizer='adam',
@@ -52,16 +57,15 @@ for k in range(global_loop):
 
     globalModel = model
 
-    test_policy_accuracy = test_policy_accuracy + result.history['test_policy_accuracy']
+    train_policy_accuracy = train_policy_accuracy + result.history['policy_accuracy']
     val_policy_accuracy = val_policy_accuracy + result.history['val_policy_accuracy']
-    print('validation policy accuracy:', val_policy_accuracy.tail)
-    print('test policy accuracy:', test_policy_accuracy.tail)
+    print('train policy accuracy:', train_policy_accuracy[-1], '- validation policy accuracy:', val_policy_accuracy[-1])
 
-
+print('Done')
 # prevModel.summary()
 
 # plot the history of accuracy
-plt.plot(test_policy_accuracy)
+plt.plot(train_policy_accuracy)
 plt.plot(val_policy_accuracy)
 plt.ylabel('loss')
 plt.xlabel('epoch')
