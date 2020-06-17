@@ -27,14 +27,16 @@ def load_data(is_dynamic, data_size, planes, moves):
     return input_data, policy, value, end
 
 
-def initialize_input_layers(input, z, depth):
+def initialize_input_layers(planes, depth):
+    input = keras.Input(shape=(19, 19, planes), name='board')
+    z = layers.Conv2D(30, 1, activation='relu', padding='same')(input)
     x = input
     for i in range(depth):
         x = layers.Conv2D(30, 3, activation='relu', padding='same')(x)
         x = layers.BatchNormalization()(x)
         if i < depth - 1:
             x = layers.add([x, z])
-    return x
+    return input, x, z
 
 
 def build_hidden_layers(head, nb_ahead, z, depth):
