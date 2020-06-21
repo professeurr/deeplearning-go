@@ -3,7 +3,7 @@ from tensorflow.keras import layers
 from tensorflow.keras.utils import plot_model
 import matplotlib.pyplot as plt
 
-from myutility import load_data, build_hidden_layers, initialize_input_layers
+from myutility import load_data, build_hidden_layers, initialize_input_layer
 
 # input
 N = 100000
@@ -19,6 +19,15 @@ mini_batch_size = 1000
 # output
 train_policy_accuracy = []
 val_policy_accuracy = []
+
+input = keras.Input(shape=(19, 19, planes), name='boardx')
+input = layers.Conv2D(32, 3, activation='relu', padding='same')(input)
+output = layers.Flatten()(input)
+model = keras.Model(inputs=input, outputs=[output])
+model.compile(optimizer='adam', loss={'value': 'mse', 'policy': 'categorical_crossentropy'}, metrics=['accuracy'])
+plot_model(model, to_file='model.png')
+
+exit(0)
 
 # initialize the input layer
 input, x, z = initialize_input_layers(planes, x_layers_depth)

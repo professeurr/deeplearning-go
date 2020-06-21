@@ -4,6 +4,7 @@ from tensorflow.keras import layers
 
 import golois
 
+
 def load_data(is_dynamic, data_size, planes, moves):
     if is_dynamic:
         input_data = np.random.randint(2, size=(data_size, 19, 19, planes))
@@ -27,21 +28,26 @@ def load_data(is_dynamic, data_size, planes, moves):
     return input_data, policy, value, end
 
 
-def initialize_input_layers(planes, depth):
-    input = keras.Input(shape=(19, 19, planes), name='board')
-    z = layers.Conv2D(30, 1, activation='relu', padding='same')(input)
-    x = input
-    for i in range(depth):
-        x = layers.Conv2D(30, 3, activation='relu', padding='same')(x)
-        x = layers.BatchNormalization()(x)
-        if i < depth - 1:
-            x = layers.add([x, z])
-    return input, x, z
+def build_input_layer(input):
+    left = layers.Conv2D(32, 3, activation='relu', padding='same')(input)
+    right = layers.Conv2D(32, 1, activation='relu', padding='same')(input)
+    output = layers.add([left, right])
+    output = layers.Activation('relu')(output)
+    return output
+
+
+def build_hidden_layer(input):
+    left = layers.Conv2D(1, 3, activation='relu', padding='same')(input)
+    left = layers.Conv2D(1, 3, padding='same')(left)
+    output = layers.add([left, input])
+    output = layers.Activation('relu')(output)
+    output = layers.BatchNormalization()(output)
+    return output
 
 
 def build_hidden_layers(head, nb_ahead, z, depth):
     for i in range(depth):
-        head = layers.Conv2D(30, nb_ahead, activation='relu', padding='same')(head)
+        head = layers.Conv2D(1, nb_ahead, activation='relu', padding='same')(head)
         head = layers.BatchNormalization()(head)
         if i < depth - 1:
             head = layers.add([head, z])
