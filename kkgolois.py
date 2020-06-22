@@ -67,7 +67,7 @@ for epoch in range(epochs):
                                                  result.history['val_policy_accuracy'][-1]))
         output_file.close()
 
-    model.save('klouvi_kodjo_model.h5')
+    model.save('klouvi_riva_model.h5')
 
 print('Done')
 
