@@ -28,29 +28,37 @@ def load_data(is_dynamic, data_size, planes, moves):
     return input_data, policy, value, end
 
 
-def build_input_layer(input):
-    left = layers.Conv2D(32, 3, activation='relu', padding='same')(input)
-    right = layers.Conv2D(32, 1, activation='relu', padding='same')(input)
-    output = layers.add([left, right])
-    output = layers.Activation('relu')(output)
-    return output
+def build_input_layer(board, filters, deep):
+    input_layer = board
+    for i in range(deep):
+        left = layers.Conv2D(filters, 3, activation='relu', padding='same')(input_layer)
+        right = layers.Conv2D(filters, 1, activation='relu', padding='same')(input_layer)
+        input_layer = layers.add([left, right])
+        input_layer = layers.Activation('relu')(input_layer)
+    return input_layer
 
 
-def build_hidden_layer(input):
-    left = layers.Conv2D(1, 3, activation='relu', padding='same')(input)
-    left = layers.Conv2D(1, 3, padding='same')(left)
-    output = layers.add([left, input])
-    output = layers.Activation('relu')(output)
-    output = layers.BatchNormalization()(output)
-    return output
+def build_policy_layer(input_layer, filters, deep, moves):
+    policy_layer = input_layer
+    for i in range(deep):
+        left = layers.Conv2D(filters, 3, activation='relu', padding='same')(policy_layer)
+        left = layers.Conv2D(filters, 3, padding='same')(left)
+        policy_layer = layers.add([left, policy_layer])
+        policy_layer = layers.Activation('relu')(policy_layer)
+        policy_layer = layers.BatchNormalization()(policy_layer)
+
+    policy_layer = layers.Conv2D(24, 3, activation='relu', padding='same')(policy_layer)
+    policy_layer = layers.MaxPooling2D()(policy_layer)
+    policy_layer = keras.layers.Flatten()(policy_layer)
+    policy_layer = layers.Dense(moves, activation='softmax', name='policy')(policy_layer)
+    return policy_layer
 
 
-def build_hidden_layers(head, nb_ahead, z, depth):
-    for i in range(depth):
-        head = layers.Conv2D(1, nb_ahead, activation='relu', padding='same')(head)
-        head = layers.BatchNormalization()(head)
-        if i < depth - 1:
-            head = layers.add([head, z])
-    head = layers.MaxPooling2D()(head)
-    head = layers.Flatten()(head)
-    return head
+def build_value_layer(input_layer):
+    value_layer = input_layer
+    value_layer = layers.Conv2D(30, 3, activation='relu', padding='same')(value_layer)
+    value_layer = layers.MaxPooling2D()(value_layer)
+    value_layer = layers.Flatten()(value_layer)
+    value_layer = layers.Dense(1, activation='sigmoid', name='value')(value_layer)
+    return value_layer
+
