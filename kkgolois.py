@@ -31,7 +31,7 @@ sample_size = int(N / 0.9)
 nb_sample = int(5000 / sample_size)
 epochs = 100
 mini_epochs = 3
-mini_batch_size = 128
+mini_batch_size = 32
 step = 0
 model.compile(optimizer='nadam',
               loss={'value': 'mse', 'policy': 'categorical_crossentropy'}, metrics=['accuracy'])
